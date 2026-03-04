@@ -1,0 +1,20 @@
+[project]
+name = "agentmind"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "groq>=1.0.0",
+    "langchain>=1.2.10",
+    "langgraph>=1.0.10",
+    "langsmith>=0.7.11",
+    "mem0ai>=1.0.5",
+    "polygon-api-client>=1.16.3",
+    "pydantic>=2.12.5",
+    "python-dotenv>=1.2.2",
+    "rich>=14.3.3",
+    "tavily-python>=0.7.22",
+    "typer>=0.24.1",
+    "wikipedia>=1.4.0",
+]
