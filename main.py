@@ -20,24 +20,26 @@ load_dotenv()
 # → calls response agent
 # → prints final answer
 
-#to Use LangGraph we remove run_agentmind function
 # Remove old imports of individual agents
 # Add this single import instead
-from graph.workflow import run_graph
+from evals.langsmith_tracer import run_with_tracing, metrics
 from memory.memory_store import save_conversation
 
 def run_agentmind(user_query: str) -> str:
     print(f"\n🤖 AgentMind Processing via LangGraph...")
     print(f"{'─'*50}")
-    response = run_graph(user_query)
+    
+    response = run_with_tracing(user_query)
+    
     print(f"{'─'*50}")
     print("✅ Done!\n")
-
-    # Save to memory after each successful response
+    
+    # Save to memory
     try:
         save_conversation(user_query, response)
-    except Exception as e:
-        pass #Memory failure shouldn't break the loop
+    except:
+        pass
+    
     return response
 
 ## Conversation Loop
@@ -63,6 +65,7 @@ def main():
         # Exit condition
         if user_input.lower() in ["exit", "quit", "bye"]:
             print("\nAgentMind: Goodbye! ")
+            metrics.print_summary()
             break
         
         # Skip empty input
