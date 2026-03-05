@@ -24,6 +24,7 @@ load_dotenv()
 # Remove old imports of individual agents
 # Add this single import instead
 from graph.workflow import run_graph
+from memory.memory_store import save_conversation
 
 def run_agentmind(user_query: str) -> str:
     print(f"\n🤖 AgentMind Processing via LangGraph...")
@@ -31,6 +32,12 @@ def run_agentmind(user_query: str) -> str:
     response = run_graph(user_query)
     print(f"{'─'*50}")
     print("✅ Done!\n")
+
+    # Save to memory after each successful response
+    try:
+        save_conversation(user_query, response)
+    except Exception as e:
+        pass #Memory failure shouldn't break the loop
     return response
 
 ## Conversation Loop

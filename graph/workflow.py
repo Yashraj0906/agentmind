@@ -29,6 +29,7 @@ class AgentState(TypedDict):
     Think of it as a shared whiteboard all agents can see.
     """
     user_query: str
+    memory_context: str
     intent: dict
     refined: dict
     fetched: dict
@@ -55,13 +56,43 @@ class AgentState(TypedDict):
 
 ###  Define Each Node (Agent Wrapper)
 
-def intent_node(state: AgentState) -> AgentState:
-    """Node 1 - Detect intent from user query"""
+def memory_node(state: AgentState) -> AgentState:
+    """Node 0 — Fetch relevant memory before processing"""
     try:
-        intent = detect_intent(state["user_query"])
+        from memory.memory_store import get_relevant_memory
+        memory_context = get_relevant_memory(state["user_query"])
+        return {"memory_context": memory_context}
+    except Exception as e:
+        return {"memory_context": ""}
+
+def intent_node(state: AgentState) -> AgentState:
+    """Node 1 — Detect intent with focused memory context"""
+    try:
+        query = state["user_query"]
+        memory = state.get("memory_context", "")
+        
+        # Only inject memory for short/vague follow-up queries
+        vague_words = ["it", "they", "their", "this", "that", "he", "she"]
+        is_followup = any(word in query.lower().split() for word in vague_words)
+        
+        if memory and is_followup:
+            query = f"{query} (context: {memory[:150]})"
+        
+        intent = detect_intent(query)
         return {"intent": intent}
     except Exception as e:
         return {"error": f"Intent detection failed: {e}"}
+
+# **What this fixes:**
+# ```
+# Before: always injected full memory → confused the LLM
+# After:  only injects memory when query contains
+#         vague words like "it", "they", "their"
+#         AND keeps it short (150 chars max)
+
+# "How does it compare to AMD?"
+# → contains "it" → inject last context (NVIDIA)
+# → LLM now knows it = NVIDIA ✅
     
 def refiner_node(state: AgentState) -> AgentState:
     """Node 2 - Refine the query"""
@@ -85,17 +116,36 @@ def fetcher_node(state: AgentState) -> AgentState:
         return {"error": f"Data fetching failed: {e}"}
     
 def analysis_node(state: AgentState) -> AgentState:
-    """Node 4 - Analyze fetched data"""
+    """Node 4 — Analyze fetched data"""
     try:
-        analysis = analyze_data(state["fetched"], state["intent"])
-        # convert Pydantic model to dict for state
+        fetched = state.get("fetched", {})
+        
+        # If no fetched data, create minimal structure for LLM to work with
+        if not fetched or not fetched.get("results"):
+            fetched = {
+                "query": state["user_query"],
+                "source_used": "llm",
+                "results_count": 1,
+                "results": [{
+                    "title": "Context Query",
+                    "content": f"Answer based on memory context: {state.get('memory_context', '')}. Query: {state['user_query']}",
+                    "url": "internal",
+                    "score": 1.0
+                }]
+            }
+        
+        analysis = analyze_data(fetched, state["intent"])
         return {"analysis": analysis.model_dump()}
     except Exception as e:
         return {"error": f"Analysis failed: {e}"}
     
 def response_node(state: AgentState) -> AgentState:
-    """Node 5 - Generate final response"""
+    """Node 5 — Generate final response"""
     try:
+        # Guard against empty analysis
+        if not state.get("analysis"):
+            return {"response": "⚠️ AgentMind could not find enough information. Please try rephrasing your query."}
+        
         from agents.models import AnalysisResult
         analysis_obj = AnalysisResult(**state["analysis"])
         response = generate_response(
@@ -105,8 +155,7 @@ def response_node(state: AgentState) -> AgentState:
         )
         return {"response": response}
     except Exception as e:
-        return {"error": f"Response generation failed: {e}"}
-    
+        return {"response": f"⚠️ AgentMind encountered an issue: {str(e)}. Please try again."}
 # **What nodes are:**
 # ```
 # Each node is just a WRAPPER around your existing agent.
@@ -123,20 +172,20 @@ def response_node(state: AgentState) -> AgentState:
 def should_fetch(state: AgentState) -> str:
     """
     Conditional edge — decides if we need to fetch data or not
-    Returns name of next node to go to
     """
-    
-    # If there was an error, go to response anyway
     if state.get("error"):
         return "response"
     
     intent = state.get("intent", {})
+    memory = state.get("memory_context", "")
     
-    # If query needs search → fetch data
+    # If memory context exists, always fetch for better answers
+    if memory:
+        return "fetcher"
+    
     if intent.get("requires_search") or intent.get("requires_stock_data"):
         return "fetcher"
     
-    # If no search needed → skip fetcher, go straight to analysis
     return "analysis"
 
 
@@ -171,14 +220,16 @@ def build_graph():
     graph = StateGraph(AgentState)
 
     # Add all nodes
+    graph.add_node("memory", memory_node)
     graph.add_node("intent", intent_node)
     graph.add_node("refiner", refiner_node)
     graph.add_node("fetcher", fetcher_node)
     graph.add_node("analysis", analysis_node)
     graph.add_node("response", response_node)
 
-    ## Set Starting node
-    graph.set_entry_point("intent")
+    ## memory is now entry point
+    graph.set_entry_point("memory")            # CHANGE THIS
+    graph.add_edge("memory", "intent") 
 
     ## Add fixed edges (Always happen)
     graph.add_edge("intent", "refiner")
