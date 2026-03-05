@@ -16,5 +16,6 @@ dependencies = [
     "rich>=14.3.3",
     "tavily-python>=0.7.22",
     "typer>=0.24.1",
+    "typing-extensions>=4.15.0",
     "wikipedia>=1.4.0",
 ]

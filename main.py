@@ -20,44 +20,17 @@ load_dotenv()
 # → calls response agent
 # → prints final answer
 
+#to Use LangGraph we remove run_agentmind function
+# Remove old imports of individual agents
+# Add this single import instead
+from graph.workflow import run_graph
 
-# core pipeline function
 def run_agentmind(user_query: str) -> str:
-    """
-    Master pipeline - runs all agents in sequence
-    Takes user query, returns final response
-    """
-
-    print(f"\n🤖 AgentMind Processing...")
-    print(f"{'-'*50}")
-
-    # step 1 - understand intent
-    print(" Step 1/5: Detecting Intent...")
-    intent = detect_intent(user_query)
-    print(f"   Type: {intent['query_type']} | Domain: {intent['domain']}")
-
-    #step 2 - refine query
-    print("Step 2/5: Refining query...")
-    refined = refine_query(user_query, intent)
-    print(f"   Search: {refined['primary_query']}")
-
-    # step 3 - Fetch Data
-    print("Step 3/5: Fetching Data...")
-    fetched = fetch_data(user_query, refined, intent)
-    print(f"   Source: {fetched['source_used']} | Results: {fetched['results_count']}")
-
-    # step 4 - analyze
-    print("Step 4/5: Analyzing results...")
-    analysis = analyze_data(fetched, intent)
-    print(f"   Sentiment: {analysis.sentiment} | Confidence: {analysis.confidence}")
-
-    # Step 5 — Generate response
-    print("Step 5/5: Generating response...")
-    response = generate_response(user_query, analysis, intent)
-
+    print(f"\n🤖 AgentMind Processing via LangGraph...")
     print(f"{'─'*50}")
-    print("Done!\n")
-
+    response = run_graph(user_query)
+    print(f"{'─'*50}")
+    print("✅ Done!\n")
     return response
 
 ## Conversation Loop

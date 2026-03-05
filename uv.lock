@@ -25,6 +25,7 @@ dependencies = [
     { name = "rich" },
     { name = "tavily-python" },
     { name = "typer" },
+    { name = "typing-extensions" },
     { name = "wikipedia" },
 ]
 
@@ -41,6 +42,7 @@ requires-dist = [
     { name = "rich", specifier = ">=14.3.3" },
     { name = "tavily-python", specifier = ">=0.7.22" },
     { name = "typer", specifier = ">=0.24.1" },
+    { name = "typing-extensions", specifier = ">=4.15.0" },
     { name = "wikipedia", specifier = ">=1.4.0" },
 ]
 
