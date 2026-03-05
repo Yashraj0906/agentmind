@@ -3,6 +3,8 @@ from dotenv import load_dotenv
 from tavily import TavilyClient
 from langchain_groq import ChatGroq
 from langchain.messages import SystemMessage, HumanMessage
+# from tools.polygon_tool import get_stock_price, get_ticker_from_query
+from tools.yahoo_tool import get_stock_data, get_ticker_from_query
 
 load_dotenv()
 
@@ -116,6 +118,30 @@ def fetch_data(user_query: str, refined_data: dict, intent_data: dict) -> dict:
         print(f"→ Searching web for: {primary_query}")
         results = search_web(primary_query)
         source_used = "tavily"
+
+        # ADD THIS BLOCK — enrich with real stock data if needed
+        if intent_data.get("requires_stock_data"):
+            ticker = get_ticker_from_query(user_query)
+            if ticker:
+                print(f"→ Fetching stock data for: {ticker}")
+                stock_data = get_stock_data(ticker)
+                if stock_data.get("success"):
+                    stock_summary = (
+                        f"Real stock data for {stock_data['name']} ({ticker}): "
+                        f"Current Price: {stock_data['currency']} {stock_data['current_price']}, "
+                        f"Previous Close: {stock_data['previous_close']}, "
+                        f"Day High: {stock_data['day_high']}, "
+                        f"Day Low: {stock_data['day_low']}, "
+                        f"Volume: {stock_data['volume']}, "
+                        f"Market Cap: {stock_data['market_cap']}"
+                    )
+                    results.insert(0, {
+                        "title": f"{ticker} Live Stock Data",
+                        "content": stock_summary,
+                        "url": "yahoo_finance",
+                        "score": 1.0
+                    })
+        
         
         # Fallback to secondary query if primary returns nothing
         if not results:

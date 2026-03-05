@@ -14,8 +14,10 @@ dependencies = [
     "pydantic>=2.12.5",
     "python-dotenv>=1.2.2",
     "rich>=14.3.3",
+    "streamlit>=1.55.0",
     "tavily-python>=0.7.22",
     "typer>=0.24.1",
     "typing-extensions>=4.15.0",
     "wikipedia>=1.4.0",
+    "yfinance>=1.2.0",
 ]
